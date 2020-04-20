@@ -6,8 +6,39 @@ Param(
 
 )
 
-# Select Start Time Based on Month:
 
+function Process-Detections {
+    Param(
+        [Parameter(Mandatory=$true)][string]$NFCPath
+        )
+        
+    If(-not (Test-Path -Path $NFCPath)) {   # If $NFCPath is not a valid path
+        Write-Host -ForegroundColor Red "'$NFCPath' Does not exist. Exiting..."
+        Exit
+        }
+
+    # Get a list of valid NFC*.wav files in the specified subdirectory
+    $NFCRegex = "^NFC \d{4}-\d\d-\d\d \d{4}_\d\d_\d\d_\d\d-\d\d_\d\d_\w{4}\.wav$" # Matches typical file pattern:  "NFC YYYY-MM-DD HHMM_HH_MM_SS-MS_%%_SPEC.wav"
+    $NFCFiles = Get-ChildItem -Path $NFCPath | Where-Object -FilterScript {$_.Name -match $NFCRegex} | Select-Object -Property "Name"
+        
+
+    ForEach($NFCFile in $NFCFiles) {
+      $NFCStartTime = Get-Date -Year ([convert]::ToInt32($NFCFile.name.Substring(4,4), 10)) -Month ([convert]::ToInt32($NFCFile.Name.Substring(9,2), 10)) -Day ([convert]::ToInt32($NFCFile.Name.Substring(12,2), 10)) -Hour ([convert]::ToInt32($NFCFile.Name.Substring(15,2), 10)) -Minute ([convert]::ToInt32($NFCFile.Name.Substring(17,2), 10)) -Second 0
+      $NFCFileTime = $NFCStartTime.AddHours([convert]::ToInt32($NFCFile.Name.Substring(20,2), 10)).AddMinutes([convert]::ToInt32($NFCFile.Name.Substring(23,2), 10)).AddSeconds([convert]::ToInt32($NFCFile.Name.Substring(26,2), 10))
+      
+      # String of the banding code guessed by BirdVoxDetect: $NFCFile.Name.Substring(35,4)
+
+      $NewFilename = "NFC " + $NFCFileTime.ToString("yyyy-MM-dd HH-mm-ss") + " - " + "PASS" + $NFCFile.Name.Substring(39,4)
+
+      Rename-Item -Path ($NFCPath + "\" + $NFCFile.Name) -NewName $NewFilename
+
+      Write-Host $NewFilename
+        
+    }
+}
+
+
+# Select Start Time Based on Month:
 # March: 	20:00-06:00
 # April:  	20:30-05:15
 # May: 	 	21:30-04:15
@@ -19,44 +50,55 @@ Param(
 # November: 20:00-06:00
 
 $StartEndTimes = @(
-    [PSCustomObject]@{Month="March";	MonthNum=03;	StartHour=20;	StartMin=0;		EndHour=06;	EndMin=0}
+    [PSCustomObject]@{Month="March";	    MonthNum=03;	StartHour=20;	StartMin=0;		EndHour=06;	EndMin=0}
+    [PSCustomObject]@{Month="April";	    MonthNum=04;	StartHour=20;	StartMin=30;	EndHour=05;	EndMin=15}
+    [PSCustomObject]@{Month="May";	      MonthNum=05;	StartHour=21;	StartMin=30;	EndHour=04;	EndMin=15}
+    [PSCustomObject]@{Month="June";	      MonthNum=06;	StartHour=20;	StartMin=0;		EndHour=06;	EndMin=0}
+    [PSCustomObject]@{Month="July"; 	    MonthNum=07;	StartHour=20;	StartMin=0;		EndHour=06;	EndMin=0}
+    [PSCustomObject]@{Month="August";	    MonthNum=08;	StartHour=20;	StartMin=0;		EndHour=06;	EndMin=0}
+    [PSCustomObject]@{Month="September";	MonthNum=09;	StartHour=20;	StartMin=0;		EndHour=06;	EndMin=0}
+    [PSCustomObject]@{Month="October";	  MonthNum=10;	StartHour=20;	StartMin=0;		EndHour=06;	EndMin=0}
+    [PSCustomObject]@{Month="November";	  MonthNum=11;	StartHour=20;	StartMin=0;		EndHour=06;	EndMin=0}
 	)
 
 
 
 
-# py -m birdvoxdetect -t 22 -c -d 3 -v "NFC 2019-04-26 0000.wav"
-$birdvoxParam = @('-m', 
-            'birdvoxdetect'
-            '-t $BirdVoxThreshold',
-            '-c',
-            '-d 3',
-            '-v'
-          )
 
-Write-Host "Starting PM Recording."
-Write-Host (Get-Date -Format "yyyy-MM-dd HH:mm:ss")
 
-$ToMidnight = (Get-Date -hour 0 -Minute 0 -Second 0).AddDays(1) - (Get-Date)
-$PMRecordTime = ($ToMidnight.ToString("hh") + ":" + $ToMidnight.ToString("mm") + ":" + $ToMidnight.ToString("ss"))
 
+########################################### PM Recording ###########################################
 # Establish current date and time and create a filename based on those variables for the PM recording. 
-$CurrentDate = (get-date -Format yyyy-MM-dd)
-$CurrentTime = (Get-Date -Format HHmm)
-$PMFilename = "NFC " + $CurrentDate + " " + $CurrentTime + "." + "$Filetype"
+Write-Host "Starting AM Recording:" (Get-Date -Format "yyyy-MM-dd HH:mm:ss")
+$PMFilename = "NFC " + (Get-Date).ToString("yyyy-MM-dd HHmm")
+$PMRecordTime = ((Get-Date -hour 0 -Minute 0 -Second 0).AddDays(1) - (Get-Date)).ToString("hh\:mm\:ss") # Establish the amount of time until midnight so your PM recording will stop then and your AM recording can begin at midnight.
+
+& ".\soxrecord.bat" ($PMFilename + "." + "$Filetype") $PMRecordTime
 
 
-& ".\soxrecord.bat" $PMFilename $PMRecordTime
-
-
+########################################### AM Recording ###########################################
 # Establish current date and time and create a filename based on those variables for the AM recording. 
-$CurrentDate = (Get-Date -Format yyyy-MM-dd)
-$CurrentTime = (Get-Date -Format HHmm)
-$AMFilename = "NFC " + $CurrentDate + " " + $CurrentTime + "." + "$Filetype"
+Write-Host "Starting AM Recording:" (Get-Date -Format "yyyy-MM-dd HH:mm:ss")
+$AMFilename = "NFC " + (Get-Date).ToString("yyyy-MM-dd HHmm")
+$AMRecordTime = "04:30:00"  #Placeholder. This should be dynamic based on date. 
 
-Write-Host $AMFilename
+& ".\soxrecord.bat" ($AMFilename + "." + "$Filetype") $AMRecordTime
 
-# $ToMidnight.Hours + ":" + $ToMidnight.Minutes
+########################################### BirdVoxDetect ###########################################
+$birdvoxParam = @('-m', 
+>>             'birdvoxdetect'
+>>             ('-t ' + $BirdVoxThreshold),
+>>             '-c',
+>>             '-d 3',
+>>             '-v',
+>>             ($PMFilename + "." + "$Filetype"),
+>>             ($AMFilename + "." + "$Filetype") 
+>>           )
+
+
+
+
+# (Get-Date) -lt (Get-Date -Month 6 -Day 20 -Hour 0 -Minute 0 -Second 0) #Is it before the summer solstice?
 
 # Grab $year string from a substring of $PMFilename
 # $year = $PMFilename.Substring(4, 4)

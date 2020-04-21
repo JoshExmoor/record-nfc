@@ -94,7 +94,7 @@ else {
   $AMFilename = "NFC " + (Get-Date).ToString("yyyy-MM-dd HHmm")
 }
 
-Write-Host -ForegroundColor Yellow "Starting AM Recording:" (Get-Date -Format "yyyy-MM-dd HH:mm:ss") Record Time:" $AMRecordTime
+Write-Host -ForegroundColor Yellow "Starting AM Recording:" (Get-Date -Format "yyyy-MM-dd HH:mm:ss") "Record Time:" $AMRecordTime
 
 & ".\soxrecord.bat" ($AMFilename + "." + "$Filetype") $AMRecordTime
 

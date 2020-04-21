@@ -2,8 +2,8 @@
 Param(
     [Parameter(ValueFromPipeline=$true)][String]$Gain = 10,  #Currently Not In Use
     [Parameter(ValueFromPipeline=$true)][String]$Filetype = "WAV",
-    [Parameter(ValueFromPipeline=$true)][String]$BirdVoxThreshold = 10
-
+    [Parameter(ValueFromPipeline=$true)][String]$BirdVoxThreshold = 10,
+    [Parameter(ValueFromPipeline=$true)][switch]$Test = $false
 )
 
 
@@ -30,9 +30,14 @@ function Process-Detections {
 
       $NewFilename = "NFC " + $NFCFileTime.ToString("yyyy-MM-dd HH-mm-ss") + " - " + "PASS" + $NFCFile.Name.Substring(39,4)
 
-      Rename-Item -Path ($NFCPath + "\" + $NFCFile.Name) -NewName $NewFilename
+      If(Test-Path -Path ($NFCPath + "\" + $NewFilename)) {   # If a file created on the same second as this already exists and would overlap, delete that file.
+        Remove-Item -Path ($NFCPath + "\" + $NFCFile.Name)
+      }
+      Else {
+        Rename-Item -Path ($NFCPath + "\" + $NFCFile.Name) -NewName $NewFilename
+      }
 
-      Write-Host $NewFilename
+      # Write-Host $NewFilename
         
     }
 }
@@ -69,33 +74,42 @@ $StartEndTimes = @(
 
 ########################################### PM Recording ###########################################
 # Establish current date and time and create a filename based on those variables for the PM recording. 
-Write-Host "Starting AM Recording:" (Get-Date -Format "yyyy-MM-dd HH:mm:ss")
+
 $PMFilename = "NFC " + (Get-Date).ToString("yyyy-MM-dd HHmm")
-$PMRecordTime = ((Get-Date -hour 0 -Minute 0 -Second 0).AddDays(1) - (Get-Date)).ToString("hh\:mm\:ss") # Establish the amount of time until midnight so your PM recording will stop then and your AM recording can begin at midnight.
+if($Test) { $PMRecordTime = "00:00:10" }
+else {
+  $PMRecordTime = ((Get-Date -hour 0 -Minute 0 -Second 0).AddDays(1) - (Get-Date)).ToString("hh\:mm\:ss") # Establish the amount of time until midnight so your PM recording will stop then and your AM recording can begin at midnight.
+}
+
+Write-Host -ForegroundColor Yellow "Starting PM Recording:" (Get-Date -Format "yyyy-MM-dd HH:mm:ss") " - Record Time:" $PMRecordTime
 
 & ".\soxrecord.bat" ($PMFilename + "." + "$Filetype") $PMRecordTime
 
 
 ########################################### AM Recording ###########################################
 # Establish current date and time and create a filename based on those variables for the AM recording. 
-Write-Host "Starting AM Recording:" (Get-Date -Format "yyyy-MM-dd HH:mm:ss")
-$AMFilename = "NFC " + (Get-Date).ToString("yyyy-MM-dd HHmm")
-$AMRecordTime = "04:30:00"  #Placeholder. This should be dynamic based on date. 
+
+if($Test) { $AMRecordTime = "00:00:10" }
+else {
+  $AMFilename = "NFC " + (Get-Date).ToString("yyyy-MM-dd HHmm")
+}
+
+Write-Host -ForegroundColor Yellow "Starting AM Recording:" (Get-Date -Format "yyyy-MM-dd HH:mm:ss") Record Time:" $AMRecordTime
 
 & ".\soxrecord.bat" ($AMFilename + "." + "$Filetype") $AMRecordTime
 
+Write-Host -ForegroundColor Yellow "Recording Complete:" (Get-Date -Format "yyyy-MM-dd HH:mm:ss")
+
 ########################################### BirdVoxDetect ###########################################
-$birdvoxParam = @('-m', 
->>             'birdvoxdetect'
->>             ('-t ' + $BirdVoxThreshold),
->>             '-c',
->>             '-d 3',
->>             '-v',
->>             ($PMFilename + "." + "$Filetype"),
->>             ($AMFilename + "." + "$Filetype") 
->>           )
-
-
+$birdvoxParam = @('-m',
+             'birdvoxdetect',
+             ('-t ' + $BirdVoxThreshold),
+             '-c',
+             '-d 3',
+             '-v',
+             ($PMFilename + "." + "$Filetype"),
+             ($AMFilename + "." + "$Filetype")
+             )
 
 
 # (Get-Date) -lt (Get-Date -Month 6 -Day 20 -Hour 0 -Minute 0 -Second 0) #Is it before the summer solstice?

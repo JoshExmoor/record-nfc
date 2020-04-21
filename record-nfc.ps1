@@ -112,6 +112,22 @@ $birdvoxParam = @('-m',
              )
 
 
+& C:\Windows\py.exe $birdvoxParam #Run BirdVoxDetect with above parameters.
+
+#################################### Process Output of BirdvoxDetect ##################################
+
+Process-Detections -NFCPath (".\" + $PMFilename + "_clips")
+Process-Detections -NFCPath (".\" + $AMFilename + "_clips")
+
+########################################### Convert to FLAC ###########################################
+If($FIletype -eq "WAV") {  #Convert WAVs to FLAC for reduced storage. 
+    & "C:\Program Files (x86)\sox-14-4-2\sox.exe" ($AMFilename + "." + $Filetype) ($AMFilename + "." + "flac")
+    Remove-Item ($PMFilename + "." + $Filetype)
+    & "C:\Program Files (x86)\sox-14-4-2\sox.exe" ($AMFilename + "." + $Filetype) ($AMFilename + "." + "flac")
+    Remove-Item ($AMFilename + "." + $Filetype)
+}
+
+
 # (Get-Date) -lt (Get-Date -Month 6 -Day 20 -Hour 0 -Minute 0 -Second 0) #Is it before the summer solstice?
 
 # Grab $year string from a substring of $PMFilename

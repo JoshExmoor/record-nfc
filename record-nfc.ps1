@@ -3,85 +3,50 @@ Param(
     [Parameter(ValueFromPipeline=$true)][String]$Gain = 10,  #Currently Not In Use
     [Parameter(ValueFromPipeline=$true)][String]$Filetype = "WAV",
     [Parameter(ValueFromPipeline=$true)][String]$BirdVoxThreshold = 10,
-    [Parameter(ValueFromPipeline=$true)][switch]$Test = $false
+    [Parameter(ValueFromPipeline=$true)][String]$BirdVoxDuration = 3,
+    [Parameter(ValueFromPipeline=$true)][String]$SunriseSunsetFilename = '.\SunriseSunset.csv',
+    [Parameter(ValueFromPipeline=$true)][Single]$SunsetOffset = 1.0,   # How many hours after sunset do you want recording to start?      
+    [Parameter(ValueFromPipeline=$true)][Single]$SunriseOffset = -1.5, # How many hours before Sunrise do you want recording to stop?
+    [Parameter(ValueFromPipeline=$true)][switch]$Test = $false,
+    [Parameter(ValueFromPipeline=$true)][switch]$PauseForInput = $false
 )
 
+. ".\Process-Detections.ps1"
 
-function Process-Detections {
-    Param(
-        [Parameter(Mandatory=$true)][string]$NFCPath
-        )
-        
-    If(-not (Test-Path -Path $NFCPath)) {   # If $NFCPath is not a valid path
-        Write-Host -ForegroundColor Red "'$NFCPath' Does not exist. Exiting..."
-        Exit
-        }
+########################################### Auto Start/stop ###########################################
 
-    # Get a list of valid NFC*.wav files in the specified subdirectory
-    $NFCRegex = "^NFC \d{4}-\d\d-\d\d \d{4}_\d\d_\d\d_\d\d-\d\d_\d\d_\w{4}\.wav$" # Matches typical file pattern:  "NFC YYYY-MM-DD HHMM_HH_MM_SS-MS_%%_SPEC.wav"
-    $NFCFiles = Get-ChildItem -Path $NFCPath | Where-Object -FilterScript {$_.Name -match $NFCRegex} | Select-Object -Property "Name"
-        
-
-    ForEach($NFCFile in $NFCFiles) {
-      $NFCStartTime = Get-Date -Year ([convert]::ToInt32($NFCFile.name.Substring(4,4), 10)) -Month ([convert]::ToInt32($NFCFile.Name.Substring(9,2), 10)) -Day ([convert]::ToInt32($NFCFile.Name.Substring(12,2), 10)) -Hour ([convert]::ToInt32($NFCFile.Name.Substring(15,2), 10)) -Minute ([convert]::ToInt32($NFCFile.Name.Substring(17,2), 10)) -Second 0
-      $NFCFileTime = $NFCStartTime.AddHours([convert]::ToInt32($NFCFile.Name.Substring(20,2), 10)).AddMinutes([convert]::ToInt32($NFCFile.Name.Substring(23,2), 10)).AddSeconds([convert]::ToInt32($NFCFile.Name.Substring(26,2), 10))
-      
-      # String of the banding code guessed by BirdVoxDetect: $NFCFile.Name.Substring(35,4)
-
-      $NewFilename = "NFC " + $NFCFileTime.ToString("yyyy-MM-dd HH-mm-ss") + " - " + "PASS" + $NFCFile.Name.Substring(39,4)
-
-      If(Test-Path -Path ($NFCPath + "\" + $NewFilename)) {   # If a file created on the same second as this already exists and would overlap, delete that file.
-        Remove-Item -Path ($NFCPath + "\" + $NFCFile.Name)
-      }
-      Else {
-        Rename-Item -Path ($NFCPath + "\" + $NFCFile.Name) -NewName $NewFilename
-      }
-
-      # Write-Host $NewFilename
-        
-    }
+If(Test-Path $SunriseSunsetFilename) {
+  $SunriseSunset = Import-Csv $SunriseSunsetFilename
+  $Today = $SunriseSunset | Where-Object -Property "Date" -match (Get-Date -Format "^M/d")
+  $Sunset = [datetime]::Parse($Today.Sunset)
+  $Sunrise = [datetime]::Parse($Today.Sunrise).AddDays(1) 
+  $StartRecord = $Sunset.AddHours($SunsetOffset)
+  $StopRecord  = $Sunrise.AddHours($SunriseOffset)
+}
+Else {   #If 
+  Write-Host -ForegroundColor Yellow "No SunriseSunset.csv file detected, reverting to default times:"  
+  $StartRecord = Get-Date -Hour 21 -Minute 00 -Second 00
+  $StopRecord  = (Get-Date -Hour 5 -Minute 00 -Second 00).AddDays(1)
+  Write-Host -ForegroundColor Yellow "Start Time:" $StartRecord.ToString("HH:mm:ss")
+  Write-Host -ForegroundColor Yellow "Start Time:" $StopRecord.ToString("HH:mm:ss")
 }
 
-
-# Select Start Time Based on Month:
-# March: 	20:00-06:00
-# April:  	20:30-05:15
-# May: 	 	21:30-04:15
-# June: 	22:00-04:00
-# July: 	22:00-04:15
-# August:	21:30-04:45
-# Sept:		21:00-05:15
-# October:	20:30-05:45
-# November: 20:00-06:00
-
-$StartEndTimes = @(
-    [PSCustomObject]@{Month="March";	    MonthNum=03;	StartHour=20;	StartMin=0;		EndHour=06;	EndMin=0}
-    [PSCustomObject]@{Month="April";	    MonthNum=04;	StartHour=20;	StartMin=30;	EndHour=05;	EndMin=15}
-    [PSCustomObject]@{Month="May";	      MonthNum=05;	StartHour=21;	StartMin=30;	EndHour=04;	EndMin=15}
-    [PSCustomObject]@{Month="June";	      MonthNum=06;	StartHour=20;	StartMin=0;		EndHour=06;	EndMin=0}
-    [PSCustomObject]@{Month="July"; 	    MonthNum=07;	StartHour=20;	StartMin=0;		EndHour=06;	EndMin=0}
-    [PSCustomObject]@{Month="August";	    MonthNum=08;	StartHour=20;	StartMin=0;		EndHour=06;	EndMin=0}
-    [PSCustomObject]@{Month="September";	MonthNum=09;	StartHour=20;	StartMin=0;		EndHour=06;	EndMin=0}
-    [PSCustomObject]@{Month="October";	  MonthNum=10;	StartHour=20;	StartMin=0;		EndHour=06;	EndMin=0}
-    [PSCustomObject]@{Month="November";	  MonthNum=11;	StartHour=20;	StartMin=0;		EndHour=06;	EndMin=0}
-	)
-
-
-
-
-
+if((New-TimeSpan -end $StartRecord) -gt 0) {  # If The StartRecord time has not already passed
+  Write-Host -ForegroundColor Blue "Will start recording at" $StartRecord.ToString("HH:mm:ss")
+  Sleep -Seconds (New-TimeSpan -End $StartRecord).TotalSeconds
+}
 
 
 ########################################### PM Recording ###########################################
 # Establish current date and time and create a filename based on those variables for the PM recording. 
 
 $PMFilename = "NFC " + (Get-Date).ToString("yyyy-MM-dd HHmm")
-if($Test) { $PMRecordTime = "00:00:10" }
+if($Test) { $PMRecordTime = "00:00:10" }  
 else {
   $PMRecordTime = ((Get-Date -hour 0 -Minute 0 -Second 0).AddDays(1) - (Get-Date)).ToString("hh\:mm\:ss") # Establish the amount of time until midnight so your PM recording will stop then and your AM recording can begin at midnight.
 }
 
-Write-Host -ForegroundColor Yellow "Starting PM Recording:" (Get-Date -Format "yyyy-MM-dd HH:mm:ss") " - Record Time:" $PMRecordTime
+Write-Host -ForegroundColor Green "Starting PM Recording:" (Get-Date -Format "yyyy-MM-dd HH:mm:ss") " - Record Time:" $PMRecordTime $AMFilename
 
 & ".\soxrecord.bat" ($PMFilename + "." + "$Filetype") $PMRecordTime
 
@@ -91,21 +56,23 @@ Write-Host -ForegroundColor Yellow "Starting PM Recording:" (Get-Date -Format "y
 
 if($Test) { $AMRecordTime = "00:00:10" }
 else {
-  $AMFilename = "NFC " + (Get-Date).ToString("yyyy-MM-dd HHmm")
+  $AMRecordTime = "04:30:00"
 }
 
-Write-Host -ForegroundColor Yellow "Starting AM Recording:" (Get-Date -Format "yyyy-MM-dd HH:mm:ss") "Record Time:" $AMRecordTime
+$AMFilename = "NFC " + (Get-Date).ToString("yyyy-MM-dd HHmm")
+
+Write-Host -ForegroundColor Green "Starting AM Recording:" (Get-Date -Format "yyyy-MM-dd HH:mm:ss") "Record Time:" $AMRecordTime $AMFilename
 
 & ".\soxrecord.bat" ($AMFilename + "." + "$Filetype") $AMRecordTime
 
-Write-Host -ForegroundColor Yellow "Recording Complete:" (Get-Date -Format "yyyy-MM-dd HH:mm:ss")
+Write-Host -ForegroundColor Green "Recording Complete:" (Get-Date -Format "yyyy-MM-dd HH:mm:ss")
 
 ########################################### BirdVoxDetect ###########################################
 $birdvoxParam = @('-m',
              'birdvoxdetect',
              ('-t ' + $BirdVoxThreshold),
              '-c',
-             '-d 3',
+             ('-d ' + $BirdVoxDuration),
              '-v',
              ($PMFilename + "." + "$Filetype"),
              ($AMFilename + "." + "$Filetype")
@@ -120,13 +87,19 @@ Process-Detections -NFCPath (".\" + $PMFilename + "_clips")
 Process-Detections -NFCPath (".\" + $AMFilename + "_clips")
 
 ########################################### Convert to FLAC ###########################################
+
 If($FIletype -eq "WAV") {  #Convert WAVs to FLAC for reduced storage. 
-    & "C:\Program Files (x86)\sox-14-4-2\sox.exe" ($AMFilename + "." + $Filetype) ($AMFilename + "." + "flac")
+    & "C:\Program Files (x86)\sox-14-4-2\sox.exe" ($PMFilename + "." + $Filetype) ($PMFilename + "." + "flac")
     Remove-Item ($PMFilename + "." + $Filetype)
     & "C:\Program Files (x86)\sox-14-4-2\sox.exe" ($AMFilename + "." + $Filetype) ($AMFilename + "." + "flac")
     Remove-Item ($AMFilename + "." + $Filetype)
 }
 
+
+If($PauseForInput) {    #Use if you are running from Task Scheduler and want the window to remain open after completion.
+  Write-Host 'Press any key to continue...'
+  $null = $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown')
+}
 
 # (Get-Date) -lt (Get-Date -Month 6 -Day 20 -Hour 0 -Minute 0 -Second 0) #Is it before the summer solstice?
 

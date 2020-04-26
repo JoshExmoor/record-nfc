@@ -1,5 +1,6 @@
 # Test Files
 *.wav
+NFC*.*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

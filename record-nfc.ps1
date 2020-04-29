@@ -15,25 +15,34 @@ Param(
 
 ########################################### Auto Start/stop ###########################################
 
-If(Test-Path $SunriseSunsetFilename) {
+If(Test-Path $SunriseSunsetFilename) {   # Check for .csv file
   $SunriseSunset = Import-Csv $SunriseSunsetFilename
-  $Today = $SunriseSunset | Where-Object -Property "Date" -match (Get-Date -Format "^M/d")
+  $Today = $SunriseSunset | Where-Object -Property "Date" -match (Get-Date -Format "^M/d")  #Get the line from the csv that matches today's Month/Day. Year does not need to match. There will be minor accuracy errors for year not matching, but not enough to matter for our purposes. 
   $Sunset = [datetime]::Parse($Today.Sunset)
   $Sunrise = [datetime]::Parse($Today.Sunrise).AddDays(1) 
   $StartRecord = $Sunset.AddHours($SunsetOffset)
   $StopRecord  = $Sunrise.AddHours($SunriseOffset)
 }
-Else {   #If 
+Else {   #If no CSV File detected, set to default start/end recording times. 
   Write-Host -ForegroundColor Yellow "No SunriseSunset.csv file detected, reverting to default times:"  
   $StartRecord = Get-Date -Hour 21 -Minute 00 -Second 00
   $StopRecord  = (Get-Date -Hour 5 -Minute 00 -Second 00).AddDays(1)
   Write-Host -ForegroundColor Yellow "Start Time:" $StartRecord.ToString("HH:mm:ss")
-  Write-Host -ForegroundColor Yellow "Start Time:" $StopRecord.ToString("HH:mm:ss")
+  Write-Host -ForegroundColor Yellow "End Time:" $StopRecord.ToString("HH:mm:ss")
 }
 
-if((New-TimeSpan -end $StartRecord) -gt 0) {  # If The StartRecord time has not already passed
+
+
+if((New-TimeSpan -end $StartRecord) -ge 0) {  # If The StartRecord time has not already passed
   Write-Host -ForegroundColor Blue "Will start recording at" $StartRecord.ToString("HH:mm:ss")
-  Sleep -Seconds (New-TimeSpan -End $StartRecord).TotalSeconds
+  While((New-TimeSpan -End $StartRecord).TotalSeconds -ge 0) {
+    Write-Host -NoNewline "`r$((New-TimeSpan -end $StartRecord).ToString('hh\:mm\:ss')) "
+    Start-Sleep -Seconds 1
+  }
+  Write-Host "Starting recording."
+}
+else {
+  Write-Host -ForegroundColor Yellow "This script started after the reccomended start time. Starting recording immediately."
 }
 
 

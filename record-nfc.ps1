@@ -32,14 +32,16 @@ Else {   #If no CSV File detected, set to default start/end recording times.
 }
 
 
-
-if((New-TimeSpan -end $StartRecord) -ge 0) {  # If The StartRecord time has not already passed
+if($test) {
+  Write-Host -ForegroundColor Yellow "Running Test Recordings."
+}
+elseif((New-TimeSpan -end $StartRecord) -ge 0) {  # If The StartRecord time has not already passed
   Write-Host -ForegroundColor Blue "Will start recording at" $StartRecord.ToString("HH:mm:ss")
   While((New-TimeSpan -End $StartRecord).TotalSeconds -ge 0) {
     Write-Host -NoNewline "`r$((New-TimeSpan -end $StartRecord).ToString('hh\:mm\:ss')) "
     Start-Sleep -Seconds 1
   }
-  Write-Host "Starting recording."
+  Write-Host -ForegroundColor Green "Starting recording."
 }
 else {
   Write-Host -ForegroundColor Yellow "This script started after the reccomended start time. Starting recording immediately."
@@ -48,6 +50,19 @@ else {
 
 ########################################### PM Recording ###########################################
 # Establish current date and time and create a filename based on those variables for the PM recording. 
+<# The below code should work for running SOX directly from within Powershell. 
+$SoxParam = @('-t',
+              'waveaudio',
+              '-c 1',
+              '-r 44100',
+              '"In 1-2"',           
+              
+)
+
+& 'C:\Program Files (x86)\sox-14-4-2\sox.exe' $SoxParam '-t' 'waveaudio' '-c 1' '-r 44100' '"In 1-2"' ($PMFilename + "." + "$Filetype") 'trim' '0' '$PMRecordTime'
+#>
+
+
 
 $PMFilename = "NFC " + (Get-Date).ToString("yyyy-MM-dd HHmm")
 if($Test) { $PMRecordTime = "00:00:10" }  
@@ -57,8 +72,8 @@ else {
 
 Write-Host -ForegroundColor Green "Starting PM Recording:" (Get-Date -Format "yyyy-MM-dd HH:mm:ss") " - Record Time:" $PMRecordTime $AMFilename
 
-& ".\soxrecord.bat" ($PMFilename + "." + "$Filetype") $PMRecordTime
-
+# & ".\soxrecord.bat" ($PMFilename + "." + "$Filetype") $PMRecordTime # Deprecated batch file method.
+& 'C:\Program Files (x86)\sox-14-4-2\sox.exe' '-t' 'waveaudio' '-c 1' '-r 44100' '"In 1-2"' ($PMFilename + "." + "$Filetype") 'trim' "0" "$PMRecordTime"
 
 ########################################### AM Recording ###########################################
 # Establish current date and time and create a filename based on those variables for the AM recording. 
@@ -72,7 +87,8 @@ $AMFilename = "NFC " + (Get-Date).ToString("yyyy-MM-dd HHmm")
 
 Write-Host -ForegroundColor Green "Starting AM Recording:" (Get-Date -Format "yyyy-MM-dd HH:mm:ss") "Record Time:" $AMRecordTime $AMFilename
 
-& ".\soxrecord.bat" ($AMFilename + "." + "$Filetype") $AMRecordTime
+# & ".\soxrecord.bat" ($AMFilename + "." + "$Filetype") $AMRecordTime
+& 'C:\Program Files (x86)\sox-14-4-2\sox.exe' '-t' 'waveaudio' '-c 1' '-r 44100' '"In 1-2"' ($AMFilename + "." + "$Filetype") 'trim' "0" "$AMRecordTime"
 
 Write-Host -ForegroundColor Green "Recording Complete:" (Get-Date -Format "yyyy-MM-dd HH:mm:ss")
 
@@ -110,9 +126,5 @@ If($PauseForInput) {    #Use if you are running from Task Scheduler and want the
   $null = $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown')
 }
 
-# (Get-Date) -lt (Get-Date -Month 6 -Day 20 -Hour 0 -Minute 0 -Second 0) #Is it before the summer solstice?
 
-# Grab $year string from a substring of $PMFilename
-# $year = $PMFilename.Substring(4, 4)
-# Convert string to base-10 number:
-# [int]$intNum = [convert]::ToInt32($test, 10)
+

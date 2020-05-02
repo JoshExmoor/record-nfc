@@ -1,6 +1,7 @@
 # Get Parameters 
 Param(
     [Parameter(ValueFromPipeline=$true)][String]$Gain = 10,  #Currently Not In Use
+    [Parameter(ValueFromPipeline=$true)][String]$AudioInputName = "In 1-2",
     [Parameter(ValueFromPipeline=$true)][String]$Filetype = "WAV",
     [Parameter(ValueFromPipeline=$true)][String]$BirdVoxThreshold = 10,
     [Parameter(ValueFromPipeline=$true)][String]$BirdVoxDuration = 3,
@@ -9,6 +10,7 @@ Param(
     [Parameter(ValueFromPipeline=$true)][Single]$SunriseOffset = -1.5, # How many hours before Sunrise do you want recording to stop?
     [Parameter(ValueFromPipeline=$true)][switch]$Test = $false,
     [Parameter(ValueFromPipeline=$true)][switch]$PauseForInput = $false
+
 )
 
 . ".\Process-Detections.ps1"
@@ -17,9 +19,9 @@ Param(
 
 If(Test-Path $SunriseSunsetFilename) {   # Check for .csv file
   $SunriseSunset = Import-Csv $SunriseSunsetFilename
-  $Today = $SunriseSunset | Where-Object -Property "Date" -match (Get-Date -Format "^M/d")  #Get the line from the csv that matches today's Month/Day. Year does not need to match. There will be minor accuracy errors for year not matching, but not enough to matter for our purposes. 
-  $Sunset = [datetime]::Parse($Today.Sunset)
-  $Sunrise = [datetime]::Parse($Today.Sunrise).AddDays(1) 
+  $Today = $SunriseSunset | Where-Object -Property "Date" -match (Get-Date -Format "^M/d/")  #Get the line from the csv that matches today's Month/Day. Year does not need to match. There will be minor accuracy errors for year not matching, but not enough to matter for our purposes. 
+  $Sunset = [datetime]::Parse($Today[0].Sunset)
+  $Sunrise = [datetime]::Parse($Today[0].Sunrise).AddDays(1) 
   $StartRecord = $Sunset.AddHours($SunsetOffset)
   $StopRecord  = $Sunrise.AddHours($SunriseOffset)
 }
@@ -73,7 +75,7 @@ else {
 Write-Host -ForegroundColor Green "Starting PM Recording:" (Get-Date -Format "yyyy-MM-dd HH:mm:ss") " - Record Time:" $PMRecordTime $AMFilename
 
 # & ".\soxrecord.bat" ($PMFilename + "." + "$Filetype") $PMRecordTime # Deprecated batch file method.
-& 'C:\Program Files (x86)\sox-14-4-2\sox.exe' '-t' 'waveaudio' '-c 1' '-r 44100' '"In 1-2"' ($PMFilename + "." + "$Filetype") 'trim' "0" "$PMRecordTime"
+& 'C:\Program Files (x86)\sox-14-4-2\sox.exe' '-t' 'waveaudio' '-c 1' '-r 44100' $AudioInputName ($PMFilename + "." + "$Filetype") 'trim' "0" "$PMRecordTime"
 
 ########################################### AM Recording ###########################################
 # Establish current date and time and create a filename based on those variables for the AM recording. 
@@ -87,8 +89,8 @@ $AMFilename = "NFC " + (Get-Date).ToString("yyyy-MM-dd HHmm")
 
 Write-Host -ForegroundColor Green "Starting AM Recording:" (Get-Date -Format "yyyy-MM-dd HH:mm:ss") "Record Time:" $AMRecordTime $AMFilename
 
-# & ".\soxrecord.bat" ($AMFilename + "." + "$Filetype") $AMRecordTime
-& 'C:\Program Files (x86)\sox-14-4-2\sox.exe' '-t' 'waveaudio' '-c 1' '-r 44100' '"In 1-2"' ($AMFilename + "." + "$Filetype") 'trim' "0" "$AMRecordTime"
+# & ".\soxrecord.bat" ($AMFilename + "." + "$Filetype") $AMRecordTime # Deprecated batch file method.
+& 'C:\Program Files (x86)\sox-14-4-2\sox.exe' '-t' 'waveaudio' '-c 1' '-r 44100' $AudioInputName ($AMFilename + "." + "$Filetype") 'trim' "0" "$AMRecordTime"
 
 Write-Host -ForegroundColor Green "Recording Complete:" (Get-Date -Format "yyyy-MM-dd HH:mm:ss")
 

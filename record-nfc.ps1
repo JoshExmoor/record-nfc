@@ -10,7 +10,6 @@ Param(
     [Parameter(ValueFromPipeline=$true)][Single]$SunriseOffset = -1.5, # How many hours before Sunrise do you want recording to stop?
     [Parameter(ValueFromPipeline=$true)][switch]$Test = $false,
     [Parameter(ValueFromPipeline=$true)][switch]$PauseForInput = $false
-
 )
 
 . ".\Process-Detections.ps1"
@@ -19,9 +18,9 @@ Param(
 
 If(Test-Path $SunriseSunsetFilename) {   # Check for .csv file
   $SunriseSunset = Import-Csv $SunriseSunsetFilename
-  $Today = $SunriseSunset | Where-Object -Property "Date" -match (Get-Date -Format "^M/d/")  #Get the line from the csv that matches today's Month/Day. Year does not need to match. There will be minor accuracy errors for year not matching, but not enough to matter for our purposes. 
-  $Sunset = [datetime]::Parse($Today[0].Sunset)
-  $Sunrise = [datetime]::Parse($Today[0].Sunrise).AddDays(1) 
+  $Today = $SunriseSunset | Where-Object -Property "Date" -match (Get-Date -Format "^?M/?d/") | Select-Object -First 1 #Get the line from the csv that matches today's Month/Day. Year does not need to match. There will be minor accuracy errors for year not matching, but not enough to matter for our purposes. 
+  $Sunset = [datetime]::Parse($Today.Sunset)
+  $Sunrise = [datetime]::Parse($Today.Sunrise).AddDays(1) 
   $StartRecord = $Sunset.AddHours($SunsetOffset)
   $StopRecord  = $Sunrise.AddHours($SunriseOffset)
 }

@@ -1,10 +1,11 @@
 ## Record-NFC
 
-Record-NFC is a Powershell script which triggers 
+Record-NFC is a Powershell script which triggers a pipeline of programs to record (SoX), process (BirdVoxDetect), rename and compress avian night flight calls (NFCs) given by migrating birds. It is a work in progress and although being used by the author for his own recording, there is a lot of work to be done to get it to a state where it is easily usable by others. 
 
 ### Required programs:
-SoX - https://sourceforge.net/projects/sox/files/sox/
-BirdVoxDetect - https://pypi.org/project/birdvoxdetect/
+**SoX** - https://sourceforge.net/projects/sox/files/sox/
+
+**BirdVoxDetect** - https://pypi.org/project/birdvoxdetect/
 
 ### How to Run and Optional command line parameters:
 

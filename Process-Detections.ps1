@@ -1,6 +1,8 @@
 function Process-Detections {
     Param(
-        [Parameter(Mandatory=$true)][string]$NFCPath
+    # Specifies a path to one or more locations.
+    [Parameter(Mandatory=$true,Position=0,ValueFromPipeline=$true,ValueFromPipelineByPropertyName=$true,HelpMessage="Path to NFC.")][Alias("PSPath")][ValidateNotNullOrEmpty()][string]$NFCPath,
+    [Int32]$WarnAmount = 1000
         )
         
     If(-not (Test-Path -Path $NFCPath)) {   # If $NFCPath is not a valid path
@@ -11,6 +13,8 @@ function Process-Detections {
     # Get a list of valid NFC*.wav files in the specified subdirectory
     $NFCRegex = "^NFC \d{4}-\d\d-\d\d \d{4}_\d\d_\d\d_\d\d-\d\d_\d\d_\w{4}\.wav$" # Matches typical file pattern:  "NFC YYYY-MM-DD HHMM_HH_MM_SS-MS_%%_SPEC.wav"
     $NFCFiles = Get-ChildItem -Path $NFCPath | Where-Object -FilterScript {$_.Name -match $NFCRegex} | Select-Object -Property "Name"
+
+    Write-Host "Found $($NFCFiles.Length) Files to process..."
         
 
     ForEach($NFCFile in $NFCFiles) {
@@ -28,6 +32,17 @@ function Process-Detections {
         Rename-Item -Path ($NFCPath + "\" + $NFCFile.Name) -NewName $NewFilename
       }
 
+
+      $AfterFiles = Get-ChildItem -Path $NFCPath -Filter *.wav
+
+      If($AfterFiles.Length -ge $WarnAmount) {
+        Write-Warning "Found more than $WarnAmount detection files. There may be an issue with the recording (rain, too much recording time, etc.)."
+      }
+
+      Write-Host "Removed $($NFCFiles.Length - $AfterFiles.Length) duplicate files during processing. Final detection count is $($AfterFiles.Length)"
+
+
+
       # Write-Host $NewFilename
         
     }
@@ -41,6 +56,4 @@ function Process-allNFCs {
     Write-Host $Directory
     Process-Detections -NFCPath $Directory
   }
-
-
 }

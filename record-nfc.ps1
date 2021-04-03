@@ -105,9 +105,15 @@ Process-Detections -NFCPath (".\" + $AMFilename + "_clips")
 
 If($FIletype -eq "WAV") {  #Convert WAVs to FLAC for reduced storage. 
     & "C:\Program Files (x86)\sox-14-4-2\sox.exe" ($PMFilename + "." + $Filetype) ($PMFilename + "." + "flac")
-    Remove-Item ($PMFilename + "." + $Filetype)
     & "C:\Program Files (x86)\sox-14-4-2\sox.exe" ($AMFilename + "." + $Filetype) ($AMFilename + "." + "flac")
-    Remove-Item ($AMFilename + "." + $Filetype)
+   
+    If((Test-Path ($PMFilename + "." + "flac")) -and (Test-Path ($PMFilename + "." + "flac"))) {
+      Remove-Item ($PMFilename + "." + $Filetype)
+      Remove-Item ($AMFilename + "." + $Filetype)
+    }
+    else {
+      Write-Warning "Did not find converted flac files... Leaving original recordings."
+    }
 }
 
 

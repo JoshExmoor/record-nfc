@@ -51,24 +51,12 @@ else {
 
 ########################################### PM Recording ###########################################
 # Establish current date and time and create a filename based on those variables for the PM recording. 
-<# The below code should work for running SOX directly from within Powershell. 
-$SoxParam = @('-t',
-              'waveaudio',
-              '-c 1',
-              '-r 44100',
-              '"In 1-2"',           
-              
-)
-
-& 'C:\Program Files (x86)\sox-14-4-2\sox.exe' $SoxParam '-t' 'waveaudio' '-c 1' '-r 44100' '"In 1-2"' ($PMFilename + "." + "$Filetype") 'trim' '0' '$PMRecordTime'
-#>
-
 
 
 $PMFilename = "NFC " + (Get-Date).ToString("yyyy-MM-dd HHmm")
 if($Test) { $PMRecordTime = "00:00:10" }  
 else {
-  $PMRecordTime = ((Get-Date -hour 0 -Minute 0 -Second 0).AddDays(1) - (Get-Date)).ToString("hh\:mm\:ss") # Establish the amount of time until midnight so your PM recording will stop then and your AM recording can begin at midnight.
+  $PMRecordTime = ($StopRecord - (Get-Date -hour 0 -Minute 0 -Second 0).AddDays(1)).ToString("hh\:mm\:ss") # Establish the amount of time to record until the the offset before sunrise. 
 }
 
 Write-Host -ForegroundColor Green "Starting PM Recording:" (Get-Date -Format "yyyy-MM-dd HH:mm:ss") " - Record Time:" $PMRecordTime $AMFilename
@@ -82,13 +70,14 @@ Write-Host -ForegroundColor Green "Starting PM Recording:" (Get-Date -Format "yy
 if($Test) { $AMRecordTime = "00:00:10" }
 else {
   $AMRecordTime = "04:30:00"
+
+  $AMRecordTime = ((Get-Date -hour 0 -Minute 0 -Second 0).AddDays(1) - (Get-Date)).ToString("hh\:mm\:ss") # Establish the amount of time until midnight so your PM recording will stop then and your AM recording can begin at midnight.
 }
 
 $AMFilename = "NFC " + (Get-Date).ToString("yyyy-MM-dd HHmm")
 
 Write-Host -ForegroundColor Green "Starting AM Recording:" (Get-Date -Format "yyyy-MM-dd HH:mm:ss") "Record Time:" $AMRecordTime $AMFilename
 
-# & ".\soxrecord.bat" ($AMFilename + "." + "$Filetype") $AMRecordTime # Deprecated batch file method.
 & 'C:\Program Files (x86)\sox-14-4-2\sox.exe' '-t' 'waveaudio' '-c 1' '-r 44100' $AudioInputName ($AMFilename + "." + "$Filetype") 'trim' "0" "$AMRecordTime"
 
 Write-Host -ForegroundColor Green "Recording Complete:" (Get-Date -Format "yyyy-MM-dd HH:mm:ss")

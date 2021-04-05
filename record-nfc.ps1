@@ -56,7 +56,7 @@ else {
 $PMFilename = "NFC " + (Get-Date).ToString("yyyy-MM-dd HHmm")
 if($Test) { $PMRecordTime = "00:00:10" }  
 else {
-  $PMRecordTime = ($StopRecord - (Get-Date -hour 0 -Minute 0 -Second 0).AddDays(1)).ToString("hh\:mm\:ss") # Establish the amount of time to record until the the offset before sunrise. 
+  $PMRecordTime = ((Get-Date -hour 0 -Minute 0 -Second 0).AddDays(1) - (Get-Date)).ToString("hh\:mm\:ss") # Establish the amount of time until midnight so your PM recording will stop then and your AM recording can begin at midnight.
 }
 
 Write-Host -ForegroundColor Green "Starting PM Recording:" (Get-Date -Format "yyyy-MM-dd HH:mm:ss") " - Record Time:" $PMRecordTime $AMFilename
@@ -69,9 +69,8 @@ Write-Host -ForegroundColor Green "Starting PM Recording:" (Get-Date -Format "yy
 
 if($Test) { $AMRecordTime = "00:00:10" }
 else {
-  $AMRecordTime = "04:30:00"
-
-  $AMRecordTime = ((Get-Date -hour 0 -Minute 0 -Second 0).AddDays(1) - (Get-Date)).ToString("hh\:mm\:ss") # Establish the amount of time until midnight so your PM recording will stop then and your AM recording can begin at midnight.
+  
+  $AMRecordTime = ($StopRecord - (Get-Date -hour 0 -Minute 0 -Second 0).AddDays(1)).ToString("hh\:mm\:ss") # Establish the amount of time to record until the the offset before sunrise. 
 }
 
 $AMFilename = "NFC " + (Get-Date).ToString("yyyy-MM-dd HHmm")
